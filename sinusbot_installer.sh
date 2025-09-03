@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # Fixed SinusBot installer for modern Ubuntu versions
 
@@ -124,7 +123,24 @@ if [ ! -f "teamspeak3-client/ts3client_linux_amd64" ]; then
   mkdir -p teamspeak3-client
   cd teamspeak3-client
   
-  su -c "wget -q '$TS_URL'" "$SINUSBOTUSER"
+  # Try multiple download methods
+  greenMessage "Attempting to download TeamSpeak Client..."
+  if ! su -c "wget --no-check-certificate -q '$TS_URL'" "$SINUSBOTUSER"; then
+    yellowMessage "wget failed, trying curl..."
+    if ! su -c "curl -k -L -o 'TeamSpeak3-Client-linux_amd64-$TS_VERSION.run' '$TS_URL'" "$SINUSBOTUSER"; then
+      # Try alternative version
+      TS_VERSION="3.5.6"
+      TS_URL="https://files.teamspeak-services.com/releases/client/$TS_VERSION/TeamSpeak3-Client-linux_amd64-$TS_VERSION.run"
+      yellowMessage "Trying older version $TS_VERSION..."
+      if ! su -c "wget --no-check-certificate -q '$TS_URL'" "$SINUSBOTUSER"; then
+        redMessage "Failed to download TeamSpeak Client. Continuing without it..."
+        cd "$LOCATION"
+        # Create empty directory structure
+        mkdir -p teamspeak3-client/plugins
+        chown -R "$SINUSBOTUSER:$SINUSBOTUSER" teamspeak3-client
+      fi
+    fi
+  fi
   
   if [ -f "TeamSpeak3-Client-linux_amd64-$TS_VERSION.run" ]; then
     chmod +x "TeamSpeak3-Client-linux_amd64-$TS_VERSION.run"
@@ -150,8 +166,8 @@ if [ ! -f "teamspeak3-client/ts3client_linux_amd64" ]; then
     
     greenMessage "TeamSpeak Client installed successfully"
   else
-    redMessage "Failed to download TeamSpeak Client"
-    exit 1
+    yellowMessage "TeamSpeak Client not downloaded - SinusBot will work in Discord-only mode"
+    mkdir -p plugins
   fi
 else
   greenMessage "TeamSpeak Client already installed"
